@@ -75,19 +75,14 @@ fn remove_padding(input: &mut Vec<u8>) {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::{Deref, Index};
     use std::slice::Chunks;
     use std::str;
 
-    use actix_web::web::Buf;
     use aes::Aes128;
-    use aes::cipher::{Block, BlockDecrypt, BlockEncrypt};
-    use aes::cipher::generic_array::{ArrayLength, GenericArray};
-    use aes::cipher::typenum::TypeArray;
+    use aes::cipher::{BlockDecrypt, BlockEncrypt};
+    use aes::cipher::generic_array::{GenericArray};
     use crypto::aessafe;
     use crypto::symmetriccipher::{BlockDecryptor, BlockEncryptor};
-    use diesel::{ExpressionMethods, QueryDsl};
-    use serde_json::Value::String;
 
     use crate::{add_padding, remove_padding};
 
