@@ -1,11 +1,6 @@
 use actix_web::{HttpRequest, HttpResponse, web};
-use diesel::pg::Pg;
-use diesel::{OptionalExtension, PgConnection, QueryDsl, RunQueryDsl};
 use log::{error, info};
 use crate::DbPool;
-
-use diesel_demo;
-use diesel_demo::models::SessionKeys;
 
 use crate::repository::keys;
 

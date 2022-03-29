@@ -1,8 +1,7 @@
 use std::fmt;
 use std::fmt::Formatter;
-use std::path::Display;
-use diesel::prelude::*;
-use serde::{Serialize, Deserialize};
+
+use serde::{Serialize};
 
 use super::schema::session_keys;
 

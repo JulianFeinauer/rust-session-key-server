@@ -1,18 +1,14 @@
-#[macro_use]
 extern crate diesel;
 
-// mod super::models;
-// mod schema;
+use actix_web::{App, HttpRequest, HttpServer, middleware, Responder, web};
+use diesel::PgConnection;
+use diesel::r2d2::ConnectionManager;
+use log::info;
+
+use crate::handler::keys;
+
 mod handler;
 mod repository;
-
-use diesel_demo;
-
-use actix_web::{HttpServer, App, middleware, web, HttpRequest, Responder};
-use diesel::r2d2::ConnectionManager;
-use diesel::PgConnection;
-use log::info;
-use crate::handler::keys;
 
 type Result = std::io::Result<()>;
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
@@ -56,11 +52,11 @@ fn init_connection() -> DbPool {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Deref;
-    use std::slice;
     use std::str;
+
     use crypto::aessafe;
     use crypto::symmetriccipher::{BlockDecryptor, BlockEncryptor};
+
     extern crate base64;
 
     #[test]
@@ -102,7 +98,17 @@ mod tests {
         let mut plaintext = vec![0u8; output.len()];
         decryptor.decrypt_block(&output, &mut plaintext);
 
-        let plaintext_as_str = str::from_utf8(&plaintext).expect("Waah");
-        println!("{}", plaintext_as_str)
+        let mut unpadded_plaintext = vec![0u8;0];
+
+        for sign in plaintext {
+            if sign > 0 {
+                unpadded_plaintext.push(sign)
+            }
+        }
+
+        let plaintext_as_str = str::from_utf8(&unpadded_plaintext.as_slice()).expect("Waah");
+        println!("{}", plaintext_as_str);
+
+        assert_eq!(plaintext_as_str, "Hallo Julian!!")
     }
 }

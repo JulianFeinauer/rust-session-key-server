@@ -2,17 +2,18 @@
 extern crate diesel;
 extern crate dotenv;
 
-pub mod schema;
-pub mod models;
-
-use diesel::prelude::*;
-use diesel::pg::PgConnection;
-use dotenv::dotenv;
 use std::env;
+
+use diesel::pg::PgConnection;
+use diesel::prelude::*;
+use dotenv::dotenv;
 use uuid::Uuid;
+
 use crate::models::SessionKeys;
 use crate::schema::session_keys;
-use crate::session_keys::session_key;
+
+pub mod schema;
+pub mod models;
 
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();
@@ -49,9 +50,11 @@ mod tests {
 
     use diesel::PgConnection;
     use uuid::Uuid;
+
     use crate::{establish_connection, insert_key, read_key};
     use crate::models::SessionKeys;
     use crate::schema::session_keys::dsl::*;
+
     use self::diesel::prelude::*;
 
     #[test]
