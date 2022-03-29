@@ -53,3 +53,40 @@ fn init_connection() -> DbPool {
     let manager = ConnectionManager::<PgConnection>::new(db_url);
     r2d2::Pool::builder().build(manager).expect("Failed to create pool.")
 }
+
+#[cfg(test)]
+mod tests {
+    use std::ops::Deref;
+    use std::slice;
+    use std::str;
+    use crypto::aessafe;
+    use crypto::symmetriccipher::{BlockDecryptor, BlockEncryptor};
+    extern crate base64;
+
+    #[test]
+    fn encrypt_decrypt() {
+        let key = "hWmZq3t6w9z$C&F)".as_bytes();
+        let encryptor = aessafe::AesSafe128Encryptor::new(key);
+
+        let input = "Hallo Julian!!!!".as_bytes();
+        let mut output = vec![0u8; input.len()];
+
+        println!("Input: {}, Output: {}, Input * 4: {}", input.len(), output.len(), input.len()*4);
+
+        encryptor.encrypt_block(input, &mut output);
+
+        for val in &output {
+            println!("Output: {}", val);
+        }
+
+        println!("Base64: {}", base64::encode(&output));
+
+        let decryptor = aessafe::AesSafe128Decryptor::new(key);
+
+        let mut plaintext = vec![0u8; output.len()];
+        decryptor.decrypt_block(&output, &mut plaintext);
+
+        let plaintext_as_str = str::from_utf8(&plaintext).expect("Waah");
+        println!("{}", plaintext_as_str)
+    }
+}
