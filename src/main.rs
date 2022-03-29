@@ -1,3 +1,4 @@
+extern crate core;
 extern crate diesel;
 
 use actix_web::{App, HttpRequest, HttpServer, middleware, Responder, web};
@@ -74,17 +75,20 @@ fn remove_padding(input: &mut Vec<u8>) {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Deref;
+    use std::ops::{Deref, Index};
+    use std::slice::Chunks;
     use std::str;
+
+    use actix_web::web::Buf;
     use aes::Aes128;
     use aes::cipher::{Block, BlockDecrypt, BlockEncrypt};
     use aes::cipher::generic_array::{ArrayLength, GenericArray};
     use aes::cipher::typenum::TypeArray;
-
     use crypto::aessafe;
     use crypto::symmetriccipher::{BlockDecryptor, BlockEncryptor};
-    use diesel::ExpressionMethods;
+    use diesel::{ExpressionMethods, QueryDsl};
     use serde_json::Value::String;
+
     use crate::{add_padding, remove_padding};
 
     extern crate base64;
@@ -134,64 +138,45 @@ mod tests {
         use std::str;
         use std::string::String;
 
+        use aes::cipher::generic_array::typenum::U16;
+
         let key = "hWmZq3t6w9z$C&F)".as_bytes();
 
         let key = GenericArray::from_slice(key);
         let aes128 = Aes128::new(&key);
 
-        let byte_block = "Hallo, wie gehts dir, lieber Julian!".as_bytes();
+        let text = "Hallo, wie gehts dir, lieber Julian!";
 
-        let block_counter = 0;
-        let mut blocks = vec![];
-        let mut buffer = vec![];
-        let mut buffer_array = [0u8; 16];
-        for sign in byte_block {
-            buffer.push(*sign);
-            if buffer.len() == 16 {
-                for pos in 0..16 {
-                    buffer_array[pos] = *buffer.get(pos).expect("");
-                }
-                blocks.push(GenericArray::from(buffer_array).clone());
-                buffer.clear();
-            }
-        }
+        let chunks: Chunks<u8> = text.as_bytes().chunks(16);
 
-        if buffer.len() > 0 {
-            // need padding
-            for i in 0..(16 - buffer.len()) {
-                buffer.push(0)
-            }
-            for pos in 0..16 {
-                buffer_array[pos] = *buffer.get(pos).expect("");
-            }
-            println!("Buffer has now {}", buffer.len());
-            blocks.push(GenericArray::from(buffer_array).clone());
-        }
+        let mut blocks: Vec<GenericArray<u8, U16>> = chunks.into_iter().map(|c| {
+            let concatenated_vec = [c, vec![0u8; 16 - c.len()].as_slice()].concat();
+            let array: GenericArray<_, U16> = GenericArray::clone_from_slice(concatenated_vec.as_slice());
+            array
+        }).collect();
 
-        println!("Created {} blocks", blocks.len());
-        println!("Remaining bytes in buffer: {}", buffer.len());
-
-
-        // let mut block = GenericArray::from_slice(byte_block).clone();
         aes128.encrypt_blocks(&mut blocks);
         aes128.decrypt_blocks(&mut blocks);
 
         let mut result_str = String::new();
 
-        for b in blocks {
-            let last: u8 = *b.get(b.len() - 1).expect("...");
-            if last == 0 {
-                // We have to do unpadding...
-                let mut unpadded: Vec<u8> = vec![];
-                for x in b {
-                    if x > 0 {
-                        unpadded.push(x);
-                    }
+        for block in blocks {
+            let sliced = block.as_slice();
+
+            let search_result = sliced.iter()
+                .position(|&x| x == 0);
+
+            let unpadded = match search_result {
+                Some(idx) => {
+                    &block.as_slice()[0..idx]
                 }
-                result_str.push_str(str::from_utf8(unpadded.as_slice()).expect("..."));
-            } else {
-                // No unpadding needed
-                result_str.push_str(str::from_utf8(b.as_slice()).expect("..."));
+                _ => block.as_slice()
+            };
+
+            let result = str::from_utf8(unpadded);
+            match result {
+                Ok(s) => result_str.push_str(s),
+                Err(_) => ()
             }
         }
 
