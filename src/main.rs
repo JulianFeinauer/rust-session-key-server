@@ -68,7 +68,23 @@ mod tests {
         let key = "hWmZq3t6w9z$C&F)".as_bytes();
         let encryptor = aessafe::AesSafe128Encryptor::new(key);
 
-        let input = "Hallo Julian!!!!".as_bytes();
+        let mut uncleaned_input = "Hallo Julian!!".as_bytes().to_vec();
+
+
+        // Input has to be 16 byte aligned?
+        let remainder = 16 - uncleaned_input.len() % 16;
+
+        println!("Remainder {}", remainder);
+
+        for _ in 0..remainder {
+            // uncleaned_input.push(" ".as_bytes()[0])
+            uncleaned_input.push(0);
+        }
+
+        let input = uncleaned_input.as_slice();
+
+        println!("Cleaned Input: '{}'", str::from_utf8(&input).expect(""));
+
         let mut output = vec![0u8; input.len()];
 
         println!("Input: {}, Output: {}, Input * 4: {}", input.len(), output.len(), input.len()*4);
