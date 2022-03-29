@@ -32,9 +32,9 @@ async fn main() -> Result {
                 .route("/", web::get().to(index))
                 .route("/keys", web::get().to(keys::get_all))
                 .route("/key/{id}", web::get().to(keys::get_by_public_id))
-                // .route("/user", web::post().to(user::create))
-                // .route("/user/{id}", web::put().to(user::update))
-                // .route("/user/{id}", web::delete().to(user::delete))
+            // .route("/user", web::post().to(user::create))
+            // .route("/user/{id}", web::put().to(user::update))
+            // .route("/user/{id}", web::delete().to(user::delete))
         })
         .bind(bind)?
         .run().await
@@ -50,12 +50,35 @@ fn init_connection() -> DbPool {
     r2d2::Pool::builder().build(manager).expect("Failed to create pool.")
 }
 
+fn add_padding(input: &mut Vec<u8>) {
+    // Input has to be 16 byte aligned!
+    let remainder = 16 - input.len() % 16;
+    for _ in 0..remainder {
+        input.push(0);
+    }
+}
+
+fn remove_padding(input: &mut Vec<u8>) {
+    let mut unpadded_plaintext = vec![0u8; 0];
+
+    for sign in input.into_iter() {
+        let sign: u8 = *sign;
+        if sign > 0 {
+            unpadded_plaintext.push(sign)
+        }
+    }
+
+    input.clear();
+    input.append(&mut unpadded_plaintext);
+}
+
 #[cfg(test)]
 mod tests {
     use std::str;
 
     use crypto::aessafe;
     use crypto::symmetriccipher::{BlockDecryptor, BlockEncryptor};
+    use crate::{add_padding, remove_padding};
 
     extern crate base64;
 
@@ -66,16 +89,7 @@ mod tests {
 
         let mut uncleaned_input = "Hallo Julian!!".as_bytes().to_vec();
 
-
-        // Input has to be 16 byte aligned?
-        let remainder = 16 - uncleaned_input.len() % 16;
-
-        println!("Remainder {}", remainder);
-
-        for _ in 0..remainder {
-            // uncleaned_input.push(" ".as_bytes()[0])
-            uncleaned_input.push(0);
-        }
+        add_padding(&mut uncleaned_input);
 
         let input = uncleaned_input.as_slice();
 
@@ -83,7 +97,7 @@ mod tests {
 
         let mut output = vec![0u8; input.len()];
 
-        println!("Input: {}, Output: {}, Input * 4: {}", input.len(), output.len(), input.len()*4);
+        println!("Input: {}, Output: {}, Input * 4: {}", input.len(), output.len(), input.len() * 4);
 
         encryptor.encrypt_block(input, &mut output);
 
@@ -98,15 +112,9 @@ mod tests {
         let mut plaintext = vec![0u8; output.len()];
         decryptor.decrypt_block(&output, &mut plaintext);
 
-        let mut unpadded_plaintext = vec![0u8;0];
+        remove_padding(&mut plaintext);
 
-        for sign in plaintext {
-            if sign > 0 {
-                unpadded_plaintext.push(sign)
-            }
-        }
-
-        let plaintext_as_str = str::from_utf8(&unpadded_plaintext.as_slice()).expect("Waah");
+        let plaintext_as_str = str::from_utf8(&plaintext.as_slice()).expect("Waah");
         println!("{}", plaintext_as_str);
 
         assert_eq!(plaintext_as_str, "Hallo Julian!!")
