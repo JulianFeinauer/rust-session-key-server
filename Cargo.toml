@@ -18,6 +18,7 @@ chrono = { version = "0.4.15", features = ["serde"] }
 uuid = { version = "0.8.1", features = ["serde", "v4"] }
 
 rust-crypto = "0.2.36"
+aes = "0.8.1"
 base64 = "0.13.0"
 # Old
 #diesel = { version = "1.4.4", features = ["postgres", "uuidv07"] }

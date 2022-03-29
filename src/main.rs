@@ -74,10 +74,17 @@ fn remove_padding(input: &mut Vec<u8>) {
 
 #[cfg(test)]
 mod tests {
+    use std::ops::Deref;
     use std::str;
+    use aes::Aes128;
+    use aes::cipher::{Block, BlockDecrypt, BlockEncrypt};
+    use aes::cipher::generic_array::{ArrayLength, GenericArray};
+    use aes::cipher::typenum::TypeArray;
 
     use crypto::aessafe;
     use crypto::symmetriccipher::{BlockDecryptor, BlockEncryptor};
+    use diesel::ExpressionMethods;
+    use serde_json::Value::String;
     use crate::{add_padding, remove_padding};
 
     extern crate base64;
@@ -118,5 +125,76 @@ mod tests {
         println!("{}", plaintext_as_str);
 
         assert_eq!(plaintext_as_str, "Hallo Julian!!")
+    }
+
+    #[test]
+    fn aes_crate() {
+        use aes;
+        use aes::cipher::KeyInit;
+        use std::str;
+        use std::string::String;
+
+        let key = "hWmZq3t6w9z$C&F)".as_bytes();
+
+        let key = GenericArray::from_slice(key);
+        let aes128 = Aes128::new(&key);
+
+        let byte_block = "Hallo, wie gehts dir, lieber Julian!".as_bytes();
+
+        let block_counter = 0;
+        let mut blocks = vec![];
+        let mut buffer = vec![];
+        let mut buffer_array = [0u8; 16];
+        for sign in byte_block {
+            buffer.push(*sign);
+            if buffer.len() == 16 {
+                for pos in 0..16 {
+                    buffer_array[pos] = *buffer.get(pos).expect("");
+                }
+                blocks.push(GenericArray::from(buffer_array).clone());
+                buffer.clear();
+            }
+        }
+
+        if buffer.len() > 0 {
+            // need padding
+            for i in 0..(16 - buffer.len()) {
+                buffer.push(0)
+            }
+            for pos in 0..16 {
+                buffer_array[pos] = *buffer.get(pos).expect("");
+            }
+            println!("Buffer has now {}", buffer.len());
+            blocks.push(GenericArray::from(buffer_array).clone());
+        }
+
+        println!("Created {} blocks", blocks.len());
+        println!("Remaining bytes in buffer: {}", buffer.len());
+
+
+        // let mut block = GenericArray::from_slice(byte_block).clone();
+        aes128.encrypt_blocks(&mut blocks);
+        aes128.decrypt_blocks(&mut blocks);
+
+        let mut result_str = String::new();
+
+        for b in blocks {
+            let last: u8 = *b.get(b.len() - 1).expect("...");
+            if last == 0 {
+                // We have to do unpadding...
+                let mut unpadded: Vec<u8> = vec![];
+                for x in b {
+                    if x > 0 {
+                        unpadded.push(x);
+                    }
+                }
+                result_str.push_str(str::from_utf8(unpadded.as_slice()).expect("..."));
+            } else {
+                // No unpadding needed
+                result_str.push_str(str::from_utf8(b.as_slice()).expect("..."));
+            }
+        }
+
+        println!("Decrypted (all): '{}'", &result_str);
     }
 }
